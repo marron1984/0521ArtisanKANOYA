@@ -43,8 +43,8 @@ FRAMES=$(awk -v p="$PER" -v f="$FPS" 'BEGIN{printf "%d", p*f}')
 INPUTS=()
 FILTERS=""
 # Oversized working canvas leaves room for a handheld-style sway.
-OW=$(( W * 6 / 5 ))   # 1.2x
-OH=$(( H * 6 / 5 ))
+OW=$(( W * 27 / 20 ))   # 1.35x
+OH=$(( H * 27 / 20 ))
 for i in "${!IMAGES[@]}"; do
   INPUTS+=(-loop 1 -i "${IMAGES[$i]}")
   # Keep a single source frame (avoids zoompan frame multiplication),
@@ -53,7 +53,7 @@ for i in "${!IMAGES[@]}"; do
   FILTERS+="[${i}:v]trim=end_frame=1,scale=${OW}:${OH}:force_original_aspect_ratio=increase,crop=${OW}:${OH},setsar=1,"
   FILTERS+="zoompan=z='min(zoom+0.0006,1.10)':d=${FRAMES}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${OW}x${OH},"
   FILTERS+="fps=${FPS},"
-  FILTERS+="crop=${W}:${H}:x='(in_w-${W})/2 + 70*sin(2*PI*t/3.1)':y='(in_h-${H})/2 + 54*sin(2*PI*t/4.3+1.1)',"
+  FILTERS+="crop=${W}:${H}:x='(in_w-${W})/2 + 150*sin(2*PI*t/6.5)':y='(in_h-${H})/2 + 130*sin(2*PI*t/8.5+1.1)',"
   FILTERS+="format=yuv420p[v${i}];"
 done
 
