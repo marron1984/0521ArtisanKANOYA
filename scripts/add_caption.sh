@@ -8,11 +8,14 @@ set -euo pipefail
 
 IN="${1:-assets/reel_morning.mp4}"
 OUT="${2:-assets/reel_morning_titled.mp4}"
-FONT="/usr/share/fonts/truetype/fonts-japanese-gothic.ttf"
+# Elegant Mincho (serif) for a premium artisan feel. fontconfig family name.
+FONT_MAIN="Noto Serif CJK JP SemiBold"
+FONT_SUB="Noto Serif CJK JP Medium"
 
 command -v ffmpeg >/dev/null || { echo "ERROR: ffmpeg not installed" >&2; exit 1; }
 [ -f "$IN" ]   || { echo "ERROR: input not found: $IN" >&2; exit 1; }
-[ -f "$FONT" ] || { echo "ERROR: font not found: $FONT" >&2; exit 1; }
+fc-match "Noto Serif CJK JP" 2>/dev/null | grep -qi noto || \
+  { echo "ERROR: 'Noto Serif CJK JP' not installed (apt-get install fonts-noto-cjk)" >&2; exit 1; }
 
 # Total duration -> drives the outro timing.
 DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$IN")
@@ -39,17 +42,17 @@ af () {
 A_IN=$(af  "$IIN" "$IFI" "$IHO" "$IOUT")
 A_OUT=$(af "$OIN" "$OFI" "$OEND" "$DUR")
 
-D () {  # text size y alpha bold(0/1)
-  local txt="$1" sz="$2" y="$3" al="$4"
-  echo "drawtext=fontfile=${FONT}:text='${txt}':fontcolor=white:fontsize=${sz}:x=(w-text_w)/2:y=${y}:bordercolor=black@0.7:borderw=5:shadowcolor=black@0.55:shadowx=2:shadowy=3:alpha='${al}'"
+D () {  # font text size y alpha letterspacing
+  local fnt="$1" txt="$2" sz="$3" y="$4" al="$5" ls="${6:-0}"
+  echo "drawtext=font='${fnt}':text='${txt}':fontcolor=white:fontsize=${sz}:x=(w-text_w)/2:y=${y}:expansion=none:bordercolor=black@0.55:borderw=4:shadowcolor=black@0.5:shadowx=2:shadowy=2:alpha='${al}'"
 }
 
 FC=""
-FC+="$(D "$I1"    92  "h*0.34" "$A_IN"),"
-FC+="$(D "$I2"    92  "h*0.34+118" "$A_IN"),"
-FC+="$(D "$ISUB"  46  "h*0.34+260" "$A_IN"),"
-FC+="$(D "$BRAND" 86  "h*0.42" "$A_OUT"),"
-FC+="$(D "$CTA"   42  "h*0.42+150" "$A_OUT")"
+FC+="$(D "$FONT_MAIN" "$I1"    90  "h*0.33" "$A_IN"),"
+FC+="$(D "$FONT_MAIN" "$I2"    90  "h*0.33+128" "$A_IN"),"
+FC+="$(D "$FONT_SUB"  "$ISUB"  44  "h*0.33+280" "$A_IN"),"
+FC+="$(D "$FONT_MAIN" "$BRAND" 80  "h*0.42" "$A_OUT"),"
+FC+="$(D "$FONT_SUB"  "$CTA"   40  "h*0.42+150" "$A_OUT")"
 
 ffmpeg -y -i "$IN" -vf "$FC" \
   -c:v libx264 -profile:v high -pix_fmt yuv420p -r 30 \
