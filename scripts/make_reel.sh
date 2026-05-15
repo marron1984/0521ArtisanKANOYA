@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Instagram Reel generator for ArtisanKANOYA
+# Builds a vertical 1080x1920 / 30fps H.264 mp4 slideshow from images in assets/.
+# Each image gets a slow Ken Burns zoom; clips are joined with crossfades.
+#
+# Usage:
+#   scripts/make_reel.sh [SRC_DIR] [OUT_FILE] [SECONDS_PER_IMAGE]
+# Defaults:
+#   SRC_DIR=assets  OUT_FILE=assets/reel_morning.mp4  SECONDS_PER_IMAGE=2.5
+#
+# Add a track named assets/audio.* (mp3/m4a/aac/wav) to include background audio.
+
+set -euo pipefail
+
+SRC_DIR="${1:-assets}"
+OUT_FILE="${2:-assets/reel_morning.mp4}"
+PER="${3:-2.5}"
+
+W=1080
+H=1920
+FPS=30
+XF=0.7   # crossfade duration (seconds)
+
+command -v ffmpeg >/dev/null || { echo "ERROR: ffmpeg not installed" >&2; exit 1; }
+
+# Collect images (case-insensitive), sorted by name.
+mapfile -t IMAGES < <(find "$SRC_DIR" -maxdepth 1 -type f \
+  \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) \
+  | sort)
+
+N=${#IMAGES[@]}
+if [ "$N" -eq 0 ]; then
+  echo "ERROR: no images found in '$SRC_DIR' (jpg/jpeg/png/webp)." >&2
+  echo "Add your photos to '$SRC_DIR/' and re-run." >&2
+  exit 1
+fi
+echo "Found $N image(s):"
+printf '  %s\n' "${IMAGES[@]}"
+
+FRAMES=$(awk -v p="$PER" -v f="$FPS" 'BEGIN{printf "%d", p*f}')
+
+# Build inputs and per-image filter chains.
+INPUTS=()
+FILTERS=""
+for i in "${!IMAGES[@]}"; do
+  INPUTS+=(-loop 1 -i "${IMAGES[$i]}")
+  # Keep a single source frame (avoids zoompan frame multiplication),
+  # scale to cover, crop to frame, then slow zoom (Ken Burns).
+  FILTERS+="[${i}:v]trim=end_frame=1,scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,"
+  FILTERS+="zoompan=z='min(zoom+0.0006,1.12)':d=${FRAMES}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${W}x${H},"
+  FILTERS+="fps=${FPS},format=yuv420p[v${i}];"
+done
+
+# Chain crossfades between consecutive clips.
+if [ "$N" -eq 1 ]; then
+  MAP_LABEL="[v0]"
+else
+  PREV="[v0]"
+  ACC="$PER"
+  for ((i=1;i<N;i++)); do
+    OFF=$(awk -v a="$ACC" -v x="$XF" 'BEGIN{printf "%.3f", a-x}')
+    OUT="[x${i}]"
+    FILTERS+="${PREV}[v${i}]xfade=transition=fade:duration=${XF}:offset=${OFF}${OUT};"
+    PREV="$OUT"
+    ACC=$(awk -v a="$ACC" -v p="$PER" -v x="$XF" 'BEGIN{printf "%.3f", a+p-x}')
+  done
+  MAP_LABEL="$PREV"
+fi
+FILTERS="${FILTERS%;}"
+
+# Optional background audio.
+AUDIO=$(find "$SRC_DIR" -maxdepth 1 -type f \
+  \( -iname 'audio.*' \) | head -n1 || true)
+
+if [ -n "$AUDIO" ]; then
+  echo "Using audio: $AUDIO"
+  ffmpeg -y "${INPUTS[@]}" -i "$AUDIO" \
+    -filter_complex "$FILTERS" \
+    -map "$MAP_LABEL" -map "${N}:a" \
+    -c:v libx264 -profile:v high -pix_fmt yuv420p -r "$FPS" \
+    -c:a aac -b:a 128k -shortest -movflags +faststart "$OUT_FILE"
+else
+  ffmpeg -y "${INPUTS[@]}" \
+    -filter_complex "$FILTERS" \
+    -map "$MAP_LABEL" \
+    -c:v libx264 -profile:v high -pix_fmt yuv420p -r "$FPS" \
+    -movflags +faststart "$OUT_FILE"
+fi
+
+echo "Done -> $OUT_FILE"
+ffprobe -v error -show_entries format=duration:stream=width,height \
+  -of default=noprint_wrappers=1 "$OUT_FILE" 2>/dev/null || true
