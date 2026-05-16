@@ -19,7 +19,7 @@ PER="${3:-2.5}"
 W=1080
 H=1920
 FPS=30
-XF=0.7   # crossfade duration (seconds)
+XF=1.2   # crossfade duration (seconds)
 
 command -v ffmpeg >/dev/null || { echo "ERROR: ffmpeg not installed" >&2; exit 1; }
 
@@ -52,13 +52,13 @@ for i in "${!IMAGES[@]}"; do
   # Scale to cover the oversized canvas, then zoompan breathes the zoom
   # between 1.0 (whole image = 引き) and 1.6 (tight = 寄り) plus a slow
   # sway, all evaluated per output frame via 'on'.
-  Z="1.30+0.30*sin(2*PI*on/(9*${FPS})+${P})"
+  Z="1.30+0.30*sin(2*PI*on/(18*${FPS})+${P})"
   XR="(iw-iw/zoom)/2"
   YR="(ih-ih/zoom)/2"
   FILTERS+="[${i}:v]trim=end_frame=1,scale=${OW}:${OH}:force_original_aspect_ratio=increase,crop=${OW}:${OH},setsar=1,"
   FILTERS+="zoompan=z='${Z}':d=${FRAMES}:s=${W}x${H}"
-  FILTERS+=":x='${XR}+${XR}*0.45*sin(2*PI*on/(11*${FPS})+${P})'"
-  FILTERS+=":y='${YR}+${YR}*0.45*sin(2*PI*on/(13*${FPS})+${P}+1.1)',"
+  FILTERS+=":x='${XR}+${XR}*0.45*sin(2*PI*on/(22*${FPS})+${P})'"
+  FILTERS+=":y='${YR}+${YR}*0.45*sin(2*PI*on/(26*${FPS})+${P}+1.1)',"
   FILTERS+="fps=${FPS},format=yuv420p[v${i}];"
 done
 
