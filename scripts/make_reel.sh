@@ -47,14 +47,19 @@ OW=$(( W * 8 / 5 ))   # 1.6x
 OH=$(( H * 8 / 5 ))
 for i in "${!IMAGES[@]}"; do
   INPUTS+=(-loop 1 -i "${IMAGES[$i]}")
-  # Keep a single source frame (avoids zoompan frame multiplication),
-  # scale to cover an oversized canvas, slow zoom (Ken Burns), then
-  # crop back to frame with a gentle sine sway for a handheld feel.
+  # Per-image phase so some photos sit wide (引き) while others are tight (寄り).
+  P=$(awk -v i="$i" 'BEGIN{printf "%.3f", i*1.7}')
+  # Scale to cover the oversized canvas, then zoompan breathes the zoom
+  # between 1.0 (whole image = 引き) and 1.6 (tight = 寄り) plus a slow
+  # sway, all evaluated per output frame via 'on'.
+  Z="1.30+0.30*sin(2*PI*on/(9*${FPS})+${P})"
+  XR="(iw-iw/zoom)/2"
+  YR="(ih-ih/zoom)/2"
   FILTERS+="[${i}:v]trim=end_frame=1,scale=${OW}:${OH}:force_original_aspect_ratio=increase,crop=${OW}:${OH},setsar=1,"
-  FILTERS+="zoompan=z='min(zoom+0.0006,1.10)':d=${FRAMES}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${OW}x${OH},"
-  FILTERS+="fps=${FPS},"
-  FILTERS+="crop=${W}:${H}:x='(in_w-${W})/2 + 270*sin(2*PI*t/11)':y='(in_h-${H})/2 + 230*sin(2*PI*t/14+1.1)',"
-  FILTERS+="format=yuv420p[v${i}];"
+  FILTERS+="zoompan=z='${Z}':d=${FRAMES}:s=${W}x${H}"
+  FILTERS+=":x='${XR}+${XR}*0.45*sin(2*PI*on/(11*${FPS})+${P})'"
+  FILTERS+=":y='${YR}+${YR}*0.45*sin(2*PI*on/(13*${FPS})+${P}+1.1)',"
+  FILTERS+="fps=${FPS},format=yuv420p[v${i}];"
 done
 
 # Chain crossfades between consecutive clips.
