@@ -52,7 +52,7 @@ for i in "${!IMAGES[@]}"; do
   # Scale to cover the oversized canvas, then zoompan breathes the zoom
   # between 1.0 (whole image = 引き) and 1.6 (tight = 寄り) plus a slow
   # sway, all evaluated per output frame via 'on'.
-  Z="1.30+0.30*sin(2*PI*on/(18*${FPS})+${P})"
+  Z="1.10+0.10*sin(2*PI*on/(18*${FPS})+${P})"
   XR="(iw-iw/zoom)/2"
   YR="(ih-ih/zoom)/2"
   FILTERS+="[${i}:v]trim=end_frame=1,scale=${OW}:${OH}:force_original_aspect_ratio=increase,crop=${OW}:${OH},setsar=1,"
