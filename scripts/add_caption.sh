@@ -8,6 +8,7 @@ set -euo pipefail
 
 IN="${1:-assets/reel_morning.mp4}"
 OUT="${2:-assets/reel_morning_titled.mp4}"
+BGM="${3:-assets/Concrete_Garden.mp3}"  # optional background music
 # Elegant Mincho (serif) for a premium artisan feel. fontconfig family name.
 FONT_MAIN="Noto Serif CJK JP SemiBold"
 FONT_SUB="Noto Serif CJK JP Medium"
@@ -54,10 +55,22 @@ FC+="$(D "$FONT_SUB"  "$ISUB"  44  "h*0.33+280" "$A_IN"),"
 FC+="$(D "$FONT_MAIN" "$BRAND" 80  "h*0.42" "$A_OUT"),"
 FC+="$(D "$FONT_SUB"  "$CTA"   40  "h*0.42+150" "$A_OUT")"
 
-ffmpeg -y -i "$IN" -vf "$FC" \
-  -c:v libx264 -profile:v high -pix_fmt yuv420p -r 30 \
-  $( ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$IN" | grep -q . && echo "-c:a copy" ) \
-  -movflags +faststart "$OUT"
+if [ -n "$BGM" ] && [ -f "$BGM" ]; then
+  # Trim BGM to the video length with a gentle fade in/out, slightly
+  # lowered volume, and stop the output at the shortest stream.
+  AFO=$(awk -v d="$DUR" 'BEGIN{printf "%.2f", d-2.0}')
+  ffmpeg -y -i "$IN" -i "$BGM" -vf "$FC" \
+    -af "volume=0.8,afade=t=in:st=0:d=1.5,afade=t=out:st=${AFO}:d=2.0" \
+    -map 0:v:0 -map 1:a:0 -shortest \
+    -c:v libx264 -profile:v high -pix_fmt yuv420p -r 30 \
+    -c:a aac -b:a 192k \
+    -movflags +faststart "$OUT"
+else
+  ffmpeg -y -i "$IN" -vf "$FC" \
+    -c:v libx264 -profile:v high -pix_fmt yuv420p -r 30 \
+    $( ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$IN" | grep -q . && echo "-c:a copy" ) \
+    -movflags +faststart "$OUT"
+fi
 
 echo "Done -> $OUT"
 ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height \
