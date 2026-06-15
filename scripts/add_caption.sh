@@ -10,8 +10,8 @@ IN="${1:-assets/reel_morning.mp4}"
 OUT="${2:-assets/reel_morning_titled.mp4}"
 BGM="${3:-assets/Concrete_Garden.mp3}"  # optional background music
 # Elegant Mincho (serif) for a premium artisan feel. fontconfig family name.
-FONT_MAIN="Noto Serif CJK JP SemiBold"
-FONT_SUB="Noto Serif CJK JP Medium"
+FONT_MAIN="Noto Serif CJK JP"
+FONT_SUB="Noto Serif CJK JP"
 
 command -v ffmpeg >/dev/null || { echo "ERROR: ffmpeg not installed" >&2; exit 1; }
 [ -f "$IN" ]   || { echo "ERROR: input not found: $IN" >&2; exit 1; }
@@ -23,10 +23,10 @@ DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$IN")
 DUR=$(awk -v d="$DUR" 'BEGIN{printf "%.2f", d}')
 
 # Copy text (edit here to change wording).
-I1="目覚めるほどの、"
+I1="朝を特別にする、"
 I2="ひと皿を。"
 ISUB="ある日のモーニング"
-BRAND="Artisan KANOYA"
+BRAND="L’Artisan Kanoya"
 CTA="ご予約はプロフィールのリンクから"
 
 # Intro window: in@0.4 fade .5 hold to 3.2 fade out .5
